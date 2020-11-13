@@ -7,6 +7,7 @@ use Symfony\Component\Validator\Constraint;
 use Symfony\Component\Validator\ConstraintValidator;
 use Symfony\Component\Validator\Exception\UnexpectedTypeException;
 use Symfony\Component\Validator\Exception\UnexpectedValueException;
+use Symfony\Component\Intl\DateFormatter\IntlDateFormatter;
 
 class DateConstraintValidator extends ConstraintValidator
 {
@@ -28,11 +29,16 @@ class DateConstraintValidator extends ConstraintValidator
         if (!filter_var($params['allowEmpty'], FILTER_VALIDATE_BOOLEAN) && empty($value)) {
             $this->addViolation($constraint, 'emptyValue');
         } else {
-            $date = DateTime::createFromFormat($params['format'], $value);
-            
-            if (!$date || $date->format('d/m/Y') != $value)
-            {
-                $this->addViolation($constraint, 'invalidDateFormat', $params['format']);
+            try {
+                $dateObject = new \DateTime($value);
+                $formatter = $this->getFormatter($params['format']);
+                $parsedValue = $formatter->format($dateObject);
+
+                if ($value != $parsedValue) {
+                    $this->addViolation($constraint, 'invalidDateFormat', $params['format']);
+                }
+            } catch (\Exception $e) {
+                $this->addViolation($constraint, 'invalidDateFormat', $params['format']);   
             }
         }
     }
@@ -45,5 +51,10 @@ class DateConstraintValidator extends ConstraintValidator
             ], 'validation'))
             ->addViolation()
         ;
+    }
+
+    private function getFormatter(string $format)
+    {
+        return IntlDateFormatter::create(null, null, null, null, null, $format);
     }
 }
